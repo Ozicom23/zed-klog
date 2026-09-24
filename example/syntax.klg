@@ -23,3 +23,29 @@ multiple lines and carry tags like #outdoors
 	1h Tab indentation
 	0h Zero duration
 	10:00-??? Aligned open range
+
+2020-01-06 (7h30m!)
+Two spaces of indentation. With it, entry summaries
+continue with four spaces.
+  8:00 - 12:15 Sprint planning #project=478 #meeting
+  -45m Lunch break
+  13:00 - 17:30 Implementing the importer #project=478
+    #ticket=ABC-123
+  30m Code review #project="22/48.3"
+
+2020-01-07 (5h15m!)
+Three spaces of indentation
+   3h #project=478 #ticket=ABC-123
+   1h15m #meeting Weekly sync
+   1h Writing C# code: a # without a name is not a tag
+
+2020-01-08
+A day off, so there are no entries #holiday
+
+2020-01-09 (8h!)
+Tags can have empty values, like #reviewed= or #reviewed=""
+    <23:30 - 0:30 Overnight deployment #deploy
+    9:00-12:00 No spaces around the dash
+    12:00 - 12:00 Ranges can be empty
+    1:00pm - 2:30pm #call='Bob "the builder"'
+    119m Minutes can exceed 59 without an hour part
