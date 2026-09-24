@@ -9,9 +9,13 @@ word_characters = ["#", "-"]
 brackets = [
   { start = "(", end = ")", close = true, newline = false },
 ]
-# Pressing Enter on a record's date line starts an indented entry.
-increase_indent_pattern = '^\d{4}[-/]\d{2}[-/]\d{2}(\s.*)?$'
-# Typing a date on an indented line moves it back to the start of the line.
-decrease_indent_pattern = '^\s+\d{4}[-/]\d{2}[-/]\d{2}\s*(\(.*)?$'
+# Pressing Enter on a record's date line starts an indented entry. Only the date
+# and should-total match, not a record summary line that starts with a date.
+increase_indent_pattern = '^\d{4}[-/]\d{2}[-/]\d{2}(\s+\([^)]*\)?)?\s*$'
+# Typing a date on an indented line moves it to where records start (see
+# `@start.record` in indents.scm).
+decrease_indent_patterns = [
+  { pattern = '^\s+\d{4}[-/]\d{2}[-/]\d{2}(\s+\([^)]*\)?)?\s*$', valid_after = ["record"] },
+]
 # After a blank line, the next record starts unindented.
 auto_indent_using_last_non_empty_line = false

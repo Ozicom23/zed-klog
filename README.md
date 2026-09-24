@@ -54,8 +54,8 @@ to your Zed settings:
 
 - `extension.toml`: the extension manifest.
 - `src/lib.rs`: the Rust part of the extension, which starts the language server.
-- `languages/klog/`: language config and the queries for highlighting, outline
-  and brackets.
+- `languages/klog/`: language config and the queries for highlighting, outline,
+  brackets and indentation.
 - `tree-sitter-klog/`: the tree-sitter grammar, written from the
   [klog specification](https://github.com/jotaen/klog/blob/main/Specification.md).
   - `grammar.js`: the grammar rules.

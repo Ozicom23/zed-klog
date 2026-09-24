@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -154,6 +155,47 @@ func TestServerSession(t *testing.T) {
 
 	c.send(7, "shutdown", nil)
 	c.result("7")
+	c.send(0, "exit", nil)
+	if code := <-c.done; code != 0 {
+		t.Errorf("exit code: got %d, want 0", code)
+	}
+}
+
+func TestServerHandlesProtocolErrors(t *testing.T) {
+	c := startServer(t)
+	hover := map[string]any{
+		"textDocument": map[string]any{"uri": "file:///time.klg"},
+		"position":     map[string]any{"line": 0, "character": 0},
+	}
+	expectError := func(code int) {
+		t.Helper()
+		m, err := c.conn.read()
+		if err != nil || m.Error == nil || m.Error.Code != code {
+			t.Fatalf("expected error %d, got %+v (%v)", code, m, err)
+		}
+	}
+
+	c.send(1, "initialize", map[string]any{"capabilities": map[string]any{}})
+	c.result("1")
+	c.send(2, "initialize", map[string]any{"capabilities": map[string]any{}})
+	expectError(codeInvalidRequest)
+
+	body := `{"jsonrpc": "2.0", "id": 3, "method": `
+	if _, err := io.WriteString(c.in, fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(body), body)); err != nil {
+		t.Fatal(err)
+	}
+	expectError(codeParseError)
+
+	// The server keeps working after a malformed message.
+	c.send(4, "textDocument/hover", hover)
+	if got := c.result("4"); got != "null" {
+		t.Errorf("unexpected hover: %s", got)
+	}
+
+	c.send(5, "shutdown", nil)
+	c.result("5")
+	c.send(6, "textDocument/hover", hover)
+	expectError(codeInvalidRequest)
 	c.send(0, "exit", nil)
 	if code := <-c.done; code != 0 {
 		t.Errorf("exit code: got %d, want 0", code)

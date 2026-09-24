@@ -10,10 +10,12 @@ import (
 )
 
 var (
-	datePrefixPattern  = regexp.MustCompile(`^\d{4}[-/]\d{2}[-/]\d{2}`)
-	tagNamePrefix      = regexp.MustCompile(`#([\p{L}\d_-]*)$`)
-	tagValuePrefix     = regexp.MustCompile(`#([\p{L}\d_-]+)=("[^"]*|'[^']*|[\p{L}\d_-]*)$`)
-	unquotedTagPattern = regexp.MustCompile(`^[\p{L}\d_-]+$`)
+	tagNamePrefix  = regexp.MustCompile(`#([\p{L}\d_-]*)$`)
+	tagValuePrefix = regexp.MustCompile(`#([\p{L}\d_-]+)=("[^"]*|'[^']*|[\p{L}\d_-]*)$`)
+	// The rest of a tag name or value after the cursor, which completions replace.
+	tagCharsSuffix     = regexp.MustCompile(`^[\p{L}\d_-]*`)
+	doubleQuotedSuffix = regexp.MustCompile(`^[^"]*"?`)
+	singleQuotedSuffix = regexp.MustCompile(`^[^']*'?`)
 )
 
 // tagUsage is how often a tag name or tag value occurs in the file.
@@ -25,25 +27,35 @@ type tagUsage struct {
 // completion completes tag names after `#`, and tag values after `#name=`.
 func (d *document) completion(p Position) CompletionList {
 	result := CompletionList{Items: []CompletionItem{}}
-	line := d.line(p.Line)
-	if datePrefixPattern.MatchString(line) {
+	if d.headerLines[p.Line] {
 		return result // Tags cannot appear in the date line.
 	}
-	prefix := line[:utf16ToByte(line, p.Character)]
+	line := d.line(p.Line)
+	cursor := utf16ToByte(line, p.Character)
+	prefix, suffix := line[:cursor], line[cursor:]
 	names, values := d.tagUsages(d.offset(p))
 
-	if m := tagValuePrefix.FindStringSubmatchIndex(prefix); m != nil {
-		name := strings.ToLower(prefix[m[2]:m[3]])
-		edit := Range{Start: Position{p.Line, utf16Len(prefix[:m[4]])}, End: p}
-		for _, u := range sortedUsages(values[name]) {
-			result.Items = append(result.Items, completionItem(u, edit, CompletionItemKindValue))
+	// A tag name right before the cursor comes first: after a quote that is
+	// not closed, klog starts a new tag rather than continuing the value.
+	if m := tagNamePrefix.FindStringIndex(prefix); m != nil {
+		end := cursor + len(tagCharsSuffix.FindString(suffix))
+		for _, u := range sortedUsages(names) {
+			result.Items = append(result.Items, completionItem(u, *d.lineRange(p.Line, m[0], end), CompletionItemKindKeyword))
 		}
 		return result
 	}
-	if m := tagNamePrefix.FindStringIndex(prefix); m != nil {
-		edit := Range{Start: Position{p.Line, utf16Len(prefix[:m[0]])}, End: p}
-		for _, u := range sortedUsages(names) {
-			result.Items = append(result.Items, completionItem(u, edit, CompletionItemKindKeyword))
+	if m := tagValuePrefix.FindStringSubmatchIndex(prefix); m != nil {
+		name := strings.ToLower(prefix[m[2]:m[3]])
+		rest := tagCharsSuffix
+		switch value := prefix[m[4]:m[5]]; {
+		case strings.HasPrefix(value, `"`):
+			rest = doubleQuotedSuffix
+		case strings.HasPrefix(value, "'"):
+			rest = singleQuotedSuffix
+		}
+		end := cursor + len(rest.FindString(suffix))
+		for _, u := range sortedUsages(values[name]) {
+			result.Items = append(result.Items, completionItem(u, *d.lineRange(p.Line, m[4], end), CompletionItemKindValue))
 		}
 	}
 	return result
@@ -73,50 +85,31 @@ func (d *document) tagUsages(cursor int) (names map[string]*tagUsage, values map
 			if cursor >= lineStart+m[0] && cursor <= lineStart+m[1] {
 				continue
 			}
-			name := line[m[2]:m[3]]
-			key := strings.ToLower(name)
-			if names[key] == nil {
-				names[key] = &tagUsage{text: "#" + name}
+			tag, err := klog.NewTagFromString(line[m[0]:m[1]])
+			if err != nil {
+				continue
 			}
-			names[key].count++
+			name := tag.Name()
+			if names[name] == nil {
+				names[name] = &tagUsage{text: "#" + line[m[2]:m[3]]}
+			}
+			names[name].count++
 
-			if m[6] == -1 {
+			if tag.Value() == "" {
 				continue
 			}
-			value := unquote(line[m[6]:m[7]])
-			if value == "" {
-				continue
+			if values[name] == nil {
+				values[name] = map[string]*tagUsage{}
 			}
-			if values[key] == nil {
-				values[key] = map[string]*tagUsage{}
+			if values[name][tag.Value()] == nil {
+				// klog quotes the value if needed.
+				values[name][tag.Value()] = &tagUsage{text: strings.TrimPrefix(tag.ToString(), "#"+name+"=")}
 			}
-			if values[key][value] == nil {
-				values[key][value] = &tagUsage{text: quoteTagValue(value)}
-			}
-			values[key][value].count++
+			values[name][tag.Value()].count++
 		}
 		lineStart += len(line)
 	}
 	return names, values
-}
-
-func unquote(value string) string {
-	if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') && value[len(value)-1] == value[0] {
-		return value[1 : len(value)-1]
-	}
-	return value
-}
-
-// quoteTagValue quotes a tag value if necessary, like klog does.
-func quoteTagValue(value string) string {
-	switch {
-	case unquotedTagPattern.MatchString(value):
-		return value
-	case strings.Contains(value, `"`):
-		return "'" + value + "'"
-	default:
-		return `"` + value + `"`
-	}
 }
 
 func sortedUsages(usages map[string]*tagUsage) []tagUsage {

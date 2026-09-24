@@ -28,10 +28,18 @@ type responseError struct {
 }
 
 const (
+	codeParseError           = -32700
+	codeInvalidRequest       = -32600
 	codeMethodNotFound       = -32601
 	codeInvalidParams        = -32602
 	codeServerNotInitialized = -32002
 )
+
+// invalidMessageError is a message whose body is not valid JSON. Unlike a
+// broken header, it doesn't affect the messages after it.
+type invalidMessageError struct{ err error }
+
+func (e *invalidMessageError) Error() string { return "invalid message: " + e.err.Error() }
 
 // connection implements the LSP base protocol: JSON-RPC messages with a
 // Content-Length header.
@@ -61,7 +69,7 @@ func (c *connection) read() (*message, error) {
 	}
 	var m message
 	if err := json.Unmarshal(body, &m); err != nil {
-		return nil, fmt.Errorf("invalid message: %w", err)
+		return nil, &invalidMessageError{err}
 	}
 	return &m, nil
 }

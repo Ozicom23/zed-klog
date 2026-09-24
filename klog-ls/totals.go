@@ -1,11 +1,29 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"github.com/jotaen/klog/klog"
 	"github.com/jotaen/klog/klog/service"
 )
+
+// inlayHints shows each record's total at the end of its date line.
+func (d *document) inlayHints(r Range, now time.Time) []InlayHint {
+	result := []InlayHint{}
+	for _, info := range d.records {
+		if info.headerLine < r.Start.Line || info.headerLine > r.End.Line {
+			continue
+		}
+		header := strings.TrimRight(d.line(info.headerLine), " \t")
+		result = append(result, InlayHint{
+			Position:    Position{info.headerLine, utf16Len(header)},
+			Label:       totalOf(info.record, now).label(info),
+			PaddingLeft: true,
+		})
+	}
+	return result
+}
 
 // recordTotal is a record's total time, like `klog total --now` computes it.
 type recordTotal struct {

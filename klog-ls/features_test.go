@@ -21,8 +21,10 @@ func TestDiagnosticsReportErrorsAndWarnings(t *testing.T) {
 		t.Fatalf("got %d diagnostics, want 2: %+v", len(diagnostics), diagnostics)
 	}
 
+	// The missing `)` is reported at the end of the line, so the whole line is marked.
 	e := diagnostics[0]
-	if e.Severity != SeverityError || e.Code != "ErrorMalformedPropertiesSyntax" || e.Range.Start.Line != 3 {
+	wantErrorRange := Range{Position{3, 0}, Position{3, 14}}
+	if e.Severity != SeverityError || e.Code != "ErrorMalformedPropertiesSyntax" || e.Range != wantErrorRange {
 		t.Errorf("unexpected error: %+v", e)
 	}
 	if !strings.HasPrefix(e.Message, "Malformed should-total time: ") {
@@ -33,6 +35,39 @@ func TestDiagnosticsReportErrorsAndWarnings(t *testing.T) {
 	wantRange := Range{Position{0, 0}, Position{0, 10}}
 	if w.Severity != SeverityWarning || w.Message != "Unclosed open range" || w.Range != wantRange {
 		t.Errorf("unexpected warning: %+v", w)
+	}
+}
+
+func TestWarningsAreAttachedToTheirRecord(t *testing.T) {
+	d := parseDocument("file:///test.klg", 1, `2026-09-01
+    9:00 - ?
+
+2026-09-01
+    1h
+
+2026-09-23
+    22:00 - ?
+
+2026-09-24
+    8:00 - 9:00
+`)
+	var lines []int
+	for _, w := range d.diagnostics(now) {
+		if w.Severity != SeverityWarning || w.Message != "Unclosed open range" {
+			t.Errorf("unexpected diagnostic: %+v", w)
+		}
+		lines = append(lines, w.Range.Start.Line)
+	}
+	// Only the first of the two records on 2026-09-01 has an open range. The
+	// one from yesterday is unclosed, because there is a record for today.
+	if len(lines) != 2 || lines[0] != 0 || lines[1] != 6 {
+		t.Errorf("got warnings at lines %v, want [0 6]", lines)
+	}
+
+	// Without a record for today, yesterday's open range may still be running.
+	d = parseDocument("file:///test.klg", 1, "2026-09-23\n    22:00 - ?\n")
+	if got := d.diagnostics(now); len(got) != 0 {
+		t.Errorf("unexpected diagnostics: %+v", got)
 	}
 }
 
@@ -140,6 +175,47 @@ func TestCompletionOfTagNames(t *testing.T) {
 	}
 }
 
+func TestCompletionReplacesTheWholeTag(t *testing.T) {
+	d := parseDocument("file:///test.klg", 1, "2026-09-24\n    1h #ticket=A-1 #call=\"Liz Jones\"\n    2h #tixet #call=\"Lix Jones\" done\n")
+	tests := []struct {
+		name string
+		pos  Position
+		want TextEdit
+	}{
+		{"tag name", Position{2, 10}, TextEdit{Range{Position{2, 7}, Position{2, 13}}, "#ticket"}},
+		{"quoted value", Position{2, 22}, TextEdit{Range{Position{2, 20}, Position{2, 31}}, `"Liz Jones"`}},
+	}
+	for _, tt := range tests {
+		var edit *TextEdit
+		for _, item := range d.completion(tt.pos).Items {
+			if item.Label == tt.want.NewText {
+				edit = item.TextEdit
+			}
+		}
+		if edit == nil || *edit != tt.want {
+			t.Errorf("%s: got %+v, want %+v", tt.name, edit, tt.want)
+		}
+	}
+}
+
+func TestCompletionAfterUnclosedQuoteCompletesTagNames(t *testing.T) {
+	d := parseDocument("file:///test.klg", 1, "2026-09-24\n    1h #a=\"x\" #b\n    2h #a=\"foo #")
+	items := d.completion(Position{2, 16}).Items
+	if len(items) == 0 || items[0].Kind != CompletionItemKindKeyword {
+		t.Errorf("expected tag names, got %+v", items)
+	}
+}
+
+func TestCompletionInSummaryLineThatStartsWithADate(t *testing.T) {
+	d := parseDocument("file:///test.klg", 1, "2026-09-24\n2026-09-20 was planned #plan #\n    1h\n")
+	if got := d.completion(Position{1, 30}).Items; len(got) != 1 || got[0].Label != "#plan" {
+		t.Errorf("got %+v", got)
+	}
+	if got := d.completion(Position{0, 10}).Items; len(got) != 0 {
+		t.Errorf("offered completions in the date line: %+v", got)
+	}
+}
+
 func TestCompletionOfTagValues(t *testing.T) {
 	text := "2026-09-24\n    1h #call=\"Liz Jones\" #call=Bob\n    2h #call=\"Liz Jones\"\n    3h #Call=\"L"
 	d := parseDocument("file:///test.klg", 1, text)
@@ -160,6 +236,7 @@ func TestCodeActions(t *testing.T) {
 	tests := []struct {
 		name  string
 		text  string
+		line  int // Where the cursor is.
 		title string
 		want  string // The text after applying the action.
 	}{
@@ -176,10 +253,22 @@ func TestCodeActions(t *testing.T) {
 			want:  "2026-09-23\n    22:00-14:32>\n",
 		},
 		{
+			name:  "stop with the 12-hour clock",
+			text:  "2026-09-24\n    9:00am - ?\n",
+			title: "Stop open range at 2:32pm",
+			want:  "2026-09-24\n    9:00am - 2:32pm\n",
+		},
+		{
 			name:  "start in today's record",
 			text:  "2026-09-24\n  8:00 - 9:00\n",
 			title: "Start open range at 14:32",
 			want:  "2026-09-24\n  8:00 - 9:00\n  14:32 - ?\n",
+		},
+		{
+			name:  "start with the 12-hour clock",
+			text:  "2026-09-24\n  8:00am - 9:00am\n",
+			title: "Start open range at 2:32pm",
+			want:  "2026-09-24\n  8:00am - 9:00am\n  2:32pm - ?\n",
 		},
 		{
 			name:  "start in a new record",
@@ -190,14 +279,22 @@ func TestCodeActions(t *testing.T) {
 		{
 			name:  "create",
 			text:  "2026-09-20 (7h30m!)\n    2h\n\n2026-09-22\n    1h\n",
+			line:  2,
 			title: "Add record for today: 2026-09-24 (7h30m!)",
 			want:  "2026-09-20 (7h30m!)\n    2h\n\n2026-09-22\n    1h\n\n2026-09-24 (7h30m!)\n",
+		},
+		{
+			name:  "create with slashes",
+			text:  "2026/09/22\n    1h\n",
+			title: "Add record for today: 2026/09/24",
+			want:  "2026/09/22\n    1h\n\n2026/09/24\n",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := parseDocument("file:///test.klg", 1, tt.text)
-			for _, a := range d.codeActions(nil, now) {
+			actions := d.codeActions(tt.line, nil, now)
+			for _, a := range actions {
 				if a.Title != tt.title {
 					continue
 				}
@@ -206,26 +303,56 @@ func TestCodeActions(t *testing.T) {
 				}
 				return
 			}
-			t.Errorf("no action %q in %+v", tt.title, titles(d.codeActions(nil, now)))
+			t.Errorf("no action %q in %+v", tt.title, titles(actions))
 		})
 	}
 }
 
 func TestCodeActionsAreOnlyOfferedWhenAppropriate(t *testing.T) {
 	d := parseDocument("file:///test.klg", 1, "2026-09-24\n    9:00 - ?\n")
-	if got := titles(d.codeActions(nil, now)); strings.Join(got, "|") != "Stop open range at 14:32" {
+	if got := titles(d.codeActions(1, nil, now)); strings.Join(got, "|") != "Stop open range at 14:32" {
 		t.Errorf("got %q; starting another open range or creating today's record should not be offered", got)
 	}
-	if got := d.codeActions([]string{"source.fixAll"}, now); len(got) != 0 {
+	if got := d.codeActions(1, []string{"source.fixAll"}, now); len(got) != 0 {
 		t.Errorf("offered actions for other kinds: %+v", got)
 	}
-	if got := d.codeActions([]string{"refactor"}, now); len(got) != 1 {
+	if got := d.codeActions(1, []string{"refactor"}, now); len(got) != 1 {
 		t.Errorf("did not offer actions for the parent kind: %+v", got)
 	}
 
 	invalid := parseDocument("file:///test.klg", 1, "2026-09-24\n    9:00 - ?\n\n2026-09-23\n    oops\n")
-	if got := invalid.codeActions(nil, now); len(got) != 0 {
+	if got := invalid.codeActions(0, nil, now); len(got) != 0 {
 		t.Errorf("offered actions for an invalid file: %+v", got)
+	}
+}
+
+func TestCodeActionsAreOnlyOfferedNearWhatTheyChange(t *testing.T) {
+	d := parseDocument("file:///test.klg", 1, "2026-09-01\n    1h\n\n2026-09-24\n    9:00 - ?\n\n")
+	tests := []struct {
+		line int
+		want string
+	}{
+		{0, ""},                         // An old record.
+		{1, ""},                         // An entry of the old record.
+		{2, "Stop open range at 14:32"}, // Between records.
+		{4, "Stop open range at 14:32"}, // In today's record.
+		{6, "Stop open range at 14:32"}, // After the last record.
+	}
+	for _, tt := range tests {
+		if got := strings.Join(titles(d.codeActions(tt.line, nil, now)), "|"); got != tt.want {
+			t.Errorf("line %d: got %q, want %q", tt.line, got, tt.want)
+		}
+	}
+
+	// Without a record for today, starting and creating it is offered in the
+	// latest record, but not in older ones.
+	d = parseDocument("file:///test.klg", 1, "2026-09-01\n    1h\n\n2026-09-22\n    2h\n")
+	if got := titles(d.codeActions(0, nil, now)); len(got) != 0 {
+		t.Errorf("offered actions in an old record: %q", got)
+	}
+	want := "Start open range at 14:32 in a new record for today|Add record for today: 2026-09-24"
+	if got := strings.Join(titles(d.codeActions(4, nil, now)), "|"); got != want {
+		t.Errorf("latest record: got %q, want %q", got, want)
 	}
 }
 

@@ -46,6 +46,16 @@ impl KlogExtension {
             }
         }
 
+        let binary_path = match self.download_latest(language_server_id) {
+            Ok(path) => path,
+            // E.g. without network access: use a version downloaded before.
+            Err(error) => previously_downloaded_binary().ok_or(error)?,
+        };
+        self.cached_binary_path = Some(binary_path.clone());
+        Ok(binary_path)
+    }
+
+    fn download_latest(&self, language_server_id: &LanguageServerId) -> Result<String> {
         zed::set_language_server_installation_status(
             language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
@@ -69,10 +79,11 @@ impl KlogExtension {
             zed::Architecture::X8664 => "amd64",
             zed::Architecture::X86 => return Err("klog-ls does not support 32-bit x86".into()),
         };
-        let (extension, file_type, executable) = match platform {
-            zed::Os::Windows => ("zip", zed::DownloadedFileType::Zip, "klog-ls.exe"),
-            _ => ("tar.gz", zed::DownloadedFileType::GzipTar, "klog-ls"),
+        let (extension, file_type) = match platform {
+            zed::Os::Windows => ("zip", zed::DownloadedFileType::Zip),
+            _ => ("tar.gz", zed::DownloadedFileType::GzipTar),
         };
+        let executable = executable_name();
 
         let asset_name = format!("klog-ls-{os}-{arch}.{extension}");
         let asset = release
@@ -101,10 +112,26 @@ impl KlogExtension {
                 }
             }
         }
-
-        self.cached_binary_path = Some(binary_path.clone());
         Ok(binary_path)
     }
+}
+
+fn executable_name() -> &'static str {
+    match zed::current_platform().0 {
+        zed::Os::Windows => "klog-ls.exe",
+        _ => "klog-ls",
+    }
+}
+
+/// Finds a binary from an earlier download. Older versions are removed after
+/// each download, so there is at most one.
+fn previously_downloaded_binary() -> Option<String> {
+    fs::read_dir(".").ok()?.flatten().find_map(|entry| {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let path = format!("{name}/{}", executable_name());
+        let is_binary = fs::metadata(&path).is_ok_and(|metadata| metadata.is_file());
+        (name.starts_with("klog-ls-") && is_binary).then_some(path)
+    })
 }
 
 impl zed::Extension for KlogExtension {

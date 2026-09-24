@@ -22,6 +22,8 @@ type document struct {
 	lines   []string // Without line endings.
 	records []*recordInfo
 	errors  []parseError
+	// headerLines are the first lines of all records, valid or not.
+	headerLines map[int]bool
 }
 
 // recordInfo is a successfully parsed record, along with where it is located.
@@ -49,7 +51,7 @@ type parseError struct {
 }
 
 func parseDocument(uri string, version int, text string) *document {
-	d := &document{uri: uri, version: version, text: text, lines: splitLines(text)}
+	d := &document{uri: uri, version: version, text: text, lines: splitLines(text), headerLines: map[int]bool{}}
 	consumed, lineCount := 0, 0
 	for consumed < len(text) {
 		block, n := txt.ParseBlock(text[consumed:], lineCount)
@@ -70,6 +72,8 @@ func (d *document) parseBlock(block txt.Block) {
 	}
 	records, _, errs := parser.NewSerialParser().Parse(source.String())
 	firstLine := block.OverallLineIndex(0)
+	significant, head, _ := block.SignificantLines()
+	d.headerLines[firstLine+head] = true
 	if errs != nil {
 		for _, e := range errs {
 			d.errors = append(d.errors, parseError{
@@ -87,7 +91,6 @@ func (d *document) parseBlock(block txt.Block) {
 		return
 	}
 
-	significant, head, _ := block.SignificantLines()
 	info := &recordInfo{
 		record:     records[0],
 		headerLine: firstLine + head,

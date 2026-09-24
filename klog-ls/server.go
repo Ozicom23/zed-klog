@@ -41,6 +41,14 @@ func (s *server) run() error {
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
+		var invalid *invalidMessageError
+		if errors.As(err, &invalid) {
+			log.Println(err)
+			if err := s.conn.replyError(json.RawMessage("null"), codeParseError, err.Error()); err != nil {
+				return err
+			}
+			continue
+		}
 		if err != nil {
 			return err
 		}
@@ -68,9 +76,18 @@ func (s *server) handle(m *message) error {
 		}
 		return s.conn.replyError(m.ID, codeServerNotInitialized, "server not initialized")
 	}
+	if s.shutdown && m.Method != "exit" {
+		if m.isNotification() {
+			return nil
+		}
+		return s.conn.replyError(m.ID, codeInvalidRequest, "server is shutting down")
+	}
 
 	switch m.Method {
 	case "initialize":
+		if s.initialized {
+			return s.conn.replyError(m.ID, codeInvalidRequest, "server is already initialized")
+		}
 		var params InitializeParams
 		if err := json.Unmarshal(m.Params, &params); err != nil {
 			return s.conn.replyError(m.ID, codeInvalidParams, err.Error())
@@ -134,7 +151,7 @@ func (s *server) handle(m *message) error {
 	case "textDocument/codeAction":
 		var params CodeActionParams
 		return s.respond(m, &params, func(d *document) any {
-			return d.codeActions(params.Context.Only, s.now())
+			return d.codeActions(params.Range.Start.Line, params.Context.Only, s.now())
 		})
 	}
 
