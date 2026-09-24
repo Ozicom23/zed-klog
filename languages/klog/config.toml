@@ -4,3 +4,14 @@ path_suffixes = ["klg"]
 # The klog specification recommends indenting with 4 spaces.
 tab_size = 4
 hard_tabs = false
+# Select tags like `#home-office` as one word.
+word_characters = ["#", "-"]
+brackets = [
+  { start = "(", end = ")", close = true, newline = false },
+]
+# Pressing Enter on a record's date line starts an indented entry.
+increase_indent_pattern = '^\d{4}[-/]\d{2}[-/]\d{2}(\s.*)?$'
+# Typing a date on an indented line moves it back to the start of the line.
+decrease_indent_pattern = '^\s+\d{4}[-/]\d{2}[-/]\d{2}\s*(\(.*)?$'
+# After a blank line, the next record starts unindented.
+auto_indent_using_last_non_empty_line = false

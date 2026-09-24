@@ -1,0 +1,52 @@
+# Publishes klog-ls binaries when a version tag (e.g. v0.2.0) is pushed. The
+# Zed extension downloads them from the latest release, so the asset names must
+# match the ones in src/lib.rs.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: klog-ls
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: klog-ls/go.mod
+          cache-dependency-path: klog-ls/go.sum
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          for target in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64 windows/arm64 windows/amd64; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            out="build/$os-$arch"
+            binary=klog-ls
+            if [ "$os" = windows ]; then binary=klog-ls.exe; fi
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
+              -ldflags "-s -w -X main.version=${GITHUB_REF_NAME#v}" -o "$out/$binary" .
+            mkdir -p dist
+            if [ "$os" = windows ]; then
+              (cd "$out" && zip -q "../../dist/klog-ls-$os-$arch.zip" "$binary")
+            else
+              tar -czf "dist/klog-ls-$os-$arch.tar.gz" -C "$out" "$binary"
+            fi
+          done
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes

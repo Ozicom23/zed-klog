@@ -16,3 +16,10 @@ repository = "https://github.com/Ozicom23/zed-klog"
 repository = "file:///Users/denysberezovskyi/Documents/repos/zed-klog"
 rev = "6c2f758dd3628a3086c05798a527e9afe5f3f600"
 path = "tree-sitter-klog"
+
+# The language server lives in `klog-ls`. The extension (src/lib.rs) uses the
+# binary set in the `lsp.klog-ls.binary.path` setting, else `klog-ls` from the
+# PATH, else downloads it from the latest GitHub release.
+[language_servers.klog-ls]
+name = "klog-ls"
+languages = ["klog"]

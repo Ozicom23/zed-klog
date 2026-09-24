@@ -2,6 +2,10 @@
 
 # Created by Zed when building the dev extension
 /grammars/
+/target/
 *.wasm
 
 /tree-sitter-klog/node_modules/
+/klog-ls/klog-ls
+/klog-ls/dist/
+/klog-ls/build/
