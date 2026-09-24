@@ -8,12 +8,12 @@ repository = "https://github.com/Ozicom23/zed-klog"
 
 # The grammar lives in this repository, in `tree-sitter-klog`. Zed checks out
 # `rev` from `repository` and compiles the parser from there, so `rev` must be
-# a commit that contains the grammar changes you want to use.
+# a pushed commit that contains the grammar changes you want to use.
 #
-# `file://` loads the grammar from the local clone, which is what you want while
-# developing. Switch to https://github.com/Ozicom23/zed-klog before publishing.
+# To try unpushed grammar changes, temporarily point `repository` to your local
+# clone, e.g. "file:///path/to/zed-klog".
 [grammars.klog]
-repository = "file:///Users/denysberezovskyi/Documents/repos/zed-klog"
+repository = "https://github.com/Ozicom23/zed-klog"
 rev = "6c2f758dd3628a3086c05798a527e9afe5f3f600"
 path = "tree-sitter-klog"
 

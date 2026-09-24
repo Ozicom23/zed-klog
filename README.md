@@ -24,9 +24,13 @@ This extension adds support for `.klg` files:
 
 ## Installing as a dev extension
 
-1. Make sure `rev` in [`extension.toml`](extension.toml) points to a commit that
-   contains the grammar (see below).
+1. Install Rust through [rustup](https://rustup.rs). Zed compiles the Rust part
+   of the extension, and adds the WebAssembly target it needs by itself.
 2. In Zed, run `zed: install dev extension` and select this folder.
+
+Zed fetches the grammar from GitHub with your git credentials, at the commit
+set as `rev` in [`extension.toml`](extension.toml). While the repository is
+private, git on your machine must be able to access it over HTTPS.
 
 The extension looks for the language server in this order:
 
@@ -73,7 +77,7 @@ npx tree-sitter generate
 npx tree-sitter test
 ```
 
-Then commit, including the regenerated `src/` files, and set `rev` in
+Then commit, including the regenerated `src/` files, push, and set `rev` in
 `extension.toml` to the new commit so that Zed picks up the change. Zed only
 rebuilds the grammar when you reinstall or rebuild the dev extension.
 
@@ -91,7 +95,9 @@ go build -o klog-ls .
 ```
 
 To try a local build in Zed, point the `lsp.klog-ls.binary.path` setting to
-it, and run `editor: restart language server`.
+it, and run `editor: restart language server`. Alternatively, `go install`
+puts `klog-ls` into `~/go/bin`. If that directory is on your PATH, the
+extension finds it without any setting.
 
 ## Releasing the language server
 
