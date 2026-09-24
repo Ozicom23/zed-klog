@@ -1,0 +1,7 @@
+.DS_Store
+
+# Created by Zed when building the dev extension
+/grammars/
+*.wasm
+
+/tree-sitter-klog/node_modules/

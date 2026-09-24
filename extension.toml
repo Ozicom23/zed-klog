@@ -1,0 +1,18 @@
+id = "klog"
+name = "klog"
+description = "Support for klog, the plain-text time tracking format."
+version = "0.1.0"
+schema_version = 1
+authors = ["Ozicom23"]
+repository = "https://github.com/Ozicom23/zed-klog"
+
+# The grammar lives in this repository, in `tree-sitter-klog`. Zed checks out
+# `rev` from `repository` and compiles the parser from there, so `rev` must be
+# a commit that contains the grammar changes you want to use.
+#
+# `file://` loads the grammar from the local clone, which is what you want while
+# developing. Switch to https://github.com/Ozicom23/zed-klog before publishing.
+[grammars.klog]
+repository = "file:///Users/denysberezovskyi/Documents/repos/zed-klog"
+rev = "COMMIT_SHA"
+path = "tree-sitter-klog"

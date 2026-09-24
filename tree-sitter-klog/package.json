@@ -1,0 +1,14 @@
+{
+  "name": "tree-sitter-klog",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for the klog time tracking file format",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.27.0"
+  }
+}

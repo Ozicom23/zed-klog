@@ -1,0 +1,6 @@
+name = "klog"
+grammar = "klog"
+path_suffixes = ["klg"]
+# The klog specification recommends indenting with 4 spaces.
+tab_size = 4
+hard_tabs = false

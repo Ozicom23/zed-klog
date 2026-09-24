@@ -1,0 +1,185 @@
+================================================================================
+Entry summaries
+================================================================================
+
+2020-01-01
+    1h Short summary
+    -1h Lunch break
+    8:00 - 9:00 Meeting
+    9:00 - ? Still going
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (record
+    (date)
+    (entry
+      (duration)
+      (entry_summary))
+    (entry
+      (duration)
+      (entry_summary))
+    (entry
+      (range
+        (time)
+        (time))
+      (entry_summary))
+    (entry
+      (open_range
+        (time)
+        (placeholder))
+      (entry_summary))))
+
+================================================================================
+Multi-line entry summary
+================================================================================
+
+2020-01-01
+    -120m This is a longer summary, which
+        is continued on the next line.
+    14:00 - ?
+        Summaries can also start on the
+        subsequent line.
+    1h Aligned
+          continuation
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (record
+    (date)
+    (entry
+      (duration)
+      (entry_summary))
+    (entry
+      (open_range
+        (time)
+        (placeholder))
+      (entry_summary))
+    (entry
+      (duration)
+      (entry_summary))))
+
+================================================================================
+Summary continuation that looks like an entry
+================================================================================
+
+2020-01-01
+    9:00 - 10:00 Call
+        1h of it was spent on setup
+        10:00 - 11:00 was cancelled
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (record
+    (date)
+    (entry
+      (range
+        (time)
+        (time))
+      (entry_summary))))
+
+================================================================================
+Tags
+================================================================================
+
+2020-01-01
+#gym #home-office #読む #Tag_1
+    1h #ticket=891 #project="22/48.3" #call='Liz Jones' #empty= #empty2=""
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (record
+    (date)
+    (record_summary
+      (tag
+        (tag_name))
+      (tag
+        (tag_name))
+      (tag
+        (tag_name))
+      (tag
+        (tag_name)))
+    (entry
+      (duration)
+      (entry_summary
+        (tag
+          (tag_name)
+          (tag_value))
+        (tag
+          (tag_name)
+          (tag_value))
+        (tag
+          (tag_name)
+          (tag_value))
+        (tag
+          (tag_name))
+        (tag
+          (tag_name)
+          (tag_value))))))
+
+================================================================================
+Tags within text
+================================================================================
+
+2020-01-01
+Office day (#coding, #meetings)
+    1h Code in C# and ##markdown, see issue#12 # done
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (record
+    (date)
+    (record_summary
+      (tag
+        (tag_name))
+      (tag
+        (tag_name)))
+    (entry
+      (duration)
+      (entry_summary
+        (tag
+          (tag_name))
+        (tag
+          (tag_name))))))
+
+================================================================================
+Tag with unclosed quote
+================================================================================
+
+2020-01-01
+    1h #call="Liz Jones and #other
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (record
+    (date)
+    (entry
+      (duration)
+      (entry_summary
+        (tag
+          (tag_name))
+        (tag
+          (tag_name))))))
+
+================================================================================
+Tag value separated by space
+================================================================================
+
+2020-01-01
+    1h #tag = value
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (record
+    (date)
+    (entry
+      (duration)
+      (entry_summary
+        (tag
+          (tag_name))))))

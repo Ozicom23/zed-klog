@@ -1,0 +1,22 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "klog",
+      "camelcase": "Klog",
+      "title": "klog",
+      "scope": "source.klog",
+      "file-types": ["klg"],
+      "highlights": "../languages/klog/highlights.scm",
+      "injection-regex": "^klog$"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "klog time tracking file format",
+    "links": {
+      "repository": "https://github.com/Ozicom23/zed-klog"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+2020-01-01 (8h!)
+A record summary can span
+multiple lines and carry tags like #outdoors
+    +3m Duration with explicit plus sign
+    8:30 - 10:30 Layout draft #project=478
+    10:30 - 12:00 Phone #call="Liz Jones"
+    5h A short summary.
+    -120m This is a longer summary, which
+        is continued on the next line.
+    14:00 - ?
+        Summaries can also start on the
+        subsequent line.
+
+2020/01/02 (-3h30m!)
+    <23:00 - 2:00 Started the day before
+    22:00 - 3:00> Ended the day after
+    9:30am - 5:45pm Twelve-hour clock
+    23:00 - 24:00 Until midnight
+    1h30m #home-office #読む
+    45m #project='single quotes' #unicode-tag_1
+
+2020-01-03
+	1h Tab indentation
+	0h Zero duration
+	10:00-??? Aligned open range
