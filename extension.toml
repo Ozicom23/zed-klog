@@ -14,5 +14,5 @@ repository = "https://github.com/Ozicom23/zed-klog"
 # developing. Switch to https://github.com/Ozicom23/zed-klog before publishing.
 [grammars.klog]
 repository = "file:///Users/denysberezovskyi/Documents/repos/zed-klog"
-rev = "COMMIT_SHA"
+rev = "6c2f758dd3628a3086c05798a527e9afe5f3f600"
 path = "tree-sitter-klog"
